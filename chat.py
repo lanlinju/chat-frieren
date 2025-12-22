@@ -70,12 +70,12 @@ def get_streaming_response(messages: List[Dict]) -> Generator[str, None, None]:
     }
 
     with requests.post(DEEPSEEK_API_URL, headers=headers, json=data, stream=True) as response:
+        if response.status_code != 200:
+            print(f"❌ API错误: {response.status_code} {response.text}")
+            return
         for chunk in response.iter_lines():
             if chunk:
                 decoded = chunk.decode('utf-8')
-                if '"error":' in decoded:
-                    print(f"❌ API错误: {decoded}")
-                    break
                 if decoded.startswith("data:"):
                     try:
                         data = json.loads(decoded[5:])

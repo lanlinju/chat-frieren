@@ -126,10 +126,14 @@ def save_conversation_history(history: List[Dict], filename: str = "chat_history
         json.dump(history, f, ensure_ascii=False, indent=2)
 
 def backup_conversation_history(filename: str = "chat_history.json"):
-    """备份对话历史文件"""
+    """备份对话历史文件到backup目录"""
     if os.path.exists(filename):
+        # 创建backup目录（如果不存在）
+        backup_dir = "backup"
+        os.makedirs(backup_dir, exist_ok=True)
+        
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_filename = f"{filename}.backup.{timestamp}"
+        backup_filename = os.path.join(backup_dir, f"{filename}.backup.{timestamp}")
         shutil.copy(filename, backup_filename)
         print(f"✅ 对话历史已备份到: {backup_filename}")
         return backup_filename

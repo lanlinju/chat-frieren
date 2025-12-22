@@ -53,6 +53,8 @@ SUMMARY_PROMPT = """
 {dialog}
 """
 
+conversation_history : List[Dict[str, str]] = []
+
 def get_streaming_response(messages: List[Dict]) -> Generator[str, None, None]:
     """获取真实的API流式响应"""
     headers = {
@@ -167,13 +169,39 @@ def load_conversation_history(filename: str = "chat_history.json") -> List[Dict]
         # 文件不存在或无效时返回初始上下文
         return [{"role": "system", "content": SYSTEM_PROMPT_ROLE}]
 
+def summarize():
+    global conversation_history
+    result = summarize_conversation(conversation_history)
+    if result:
+        summary, keep_indices = result
+        
+        # 创建新的对话历史
+        new_conversation_history = [
+            {"role": "system", "content": SYSTEM_PROMPT_ROLE},
+            {"role": "system", "content": f"[对话总结]\n{summary}"}
+        ]
+        
+        # 添加保留的最新1/4对话
+        for idx in keep_indices:
+            new_conversation_history.append(conversation_history[idx])
+        
+        # 备份旧的chat_history.json
+        backup_conversation_history()
+        # 保存新的对话历史
+        save_conversation_history(new_conversation_history)
+        print("✅ 对话已总结并保存（保留最新1/4对话）")
+        
+        # 更新当前对话历史
+        conversation_history = new_conversation_history
+
 def chat_loop():
     """主聊天循环"""
     print("DeepSeek 聊天客户端 (输入 'exit' 退出, '/s' 总结对话)")
 
     # 加载或初始化对话上下文
+    global conversation_history
     conversation_history = load_conversation_history()
-    
+
     # 添加日期信息
     current_date = datetime.now().strftime("%Y年%m月%d日 %H:%M:%S")
     conversation_history.append({"role": "system", "content": f"对话日期: {current_date}"})
@@ -187,28 +215,7 @@ def chat_loop():
             
             # 处理 /s 命令（总结对话）
             if user_input.strip() == '/s':
-                result = summarize_conversation(conversation_history)
-                if result:
-                    summary, keep_indices = result
-                    
-                    # 创建新的对话历史
-                    new_conversation_history = [
-                        {"role": "system", "content": SYSTEM_PROMPT_ROLE},
-                        {"role": "system", "content": f"[对话总结]\n{summary}"}
-                    ]
-                    
-                    # 添加保留的最新1/4对话
-                    for idx in keep_indices:
-                        new_conversation_history.append(conversation_history[idx])
-                    
-                    # 备份旧的chat_history.json
-                    backup_conversation_history()
-                    # 保存新的对话历史
-                    save_conversation_history(new_conversation_history)
-                    print("✅ 对话已总结并保存（保留最新1/4对话）")
-                    
-                    # 更新当前对话历史
-                    conversation_history = new_conversation_history
+                summarize()
                 continue
 
             # 添加用户消息到上下文

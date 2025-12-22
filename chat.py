@@ -80,15 +80,17 @@ def get_streaming_response(messages: List[Dict]) -> Generator[str, None, None]:
                         continue
 
 def summarize_conversation(conversation_history: List[Dict]) -> str:
-    """将对话历史总结为摘要"""
-    # 提取用户和助手的对话内容
+    """将对话历史的旧的3/4总结为摘要，保留最新的1/4不变"""
+    # 提取用户和助手的对话内容及其索引
     dialog_messages = []
+    dialog_indices = []
     previous_summary = None
     
-    for msg in conversation_history:
+    for i, msg in enumerate(conversation_history):
         if msg["role"] in ["user", "assistant"]:
             role = "User" if msg["role"] == "user" else "Frieren"
             dialog_messages.append(f"{role}: {msg['content']}")
+            dialog_indices.append(i)
         elif msg["role"] == "system":
             content = msg.get("content", "")
             if "[对话总结]" in content:
@@ -100,16 +102,28 @@ def summarize_conversation(conversation_history: List[Dict]) -> str:
         print("❌ 没有对话内容可总结")
         return None
     
+    # 计算3/4和1/4的分割点
+    total_dialogs = len(dialog_indices)
+    split_point = int(total_dialogs * 3 / 4)
+    
+    # 只对前3/4的对话进行总结
+    summarize_messages = dialog_messages[:split_point]
+    keep_messages = dialog_indices[split_point:]  # 保留后1/4的索引
+    
+    if not summarize_messages:
+        print("❌ 对话内容不足，无法总结")
+        return None
+    
     # 如果存在之前的总结，将其加入到新的总结请求中
     context_text = "之前的对话总结:\n" + previous_summary if previous_summary else ""
     
     # 构建总结请求
     summary_messages = [
         {"role": "system", "content": SYSTEM_PROMPT_SUMMERIZE},
-        {"role": "user", "content": SUMMARY_PROMPT.format(context=context_text, dialog='\n'.join(dialog_messages)) }
+        {"role": "user", "content": SUMMARY_PROMPT.format(context=context_text, dialog='\n'.join(summarize_messages)) }
     ]
     
-    print("\n🔄 正在总结对话内容...\n")
+    print("\n🔄 正在总结对话内容（只总结前3/4）...\n")
     print("Summary: ", end='', flush=True)
     summary_chunks = []
     
@@ -119,7 +133,8 @@ def summarize_conversation(conversation_history: List[Dict]) -> str:
             summary_chunks.append(chunk)
         print()
         summary = ''.join(summary_chunks)
-        return summary
+        # 返回总结内容和需要保留的消息索引
+        return summary, keep_messages
     except Exception as e:
         print(f"\n❌ 总结出错: {e}")
         return None
@@ -172,19 +187,25 @@ def chat_loop():
             
             # 处理 /s 命令（总结对话）
             if user_input.strip() == '/s':
-                summary = summarize_conversation(conversation_history)
-                if summary:
-                    # 创建新的对话历史，包含SYSTEM_PROMPT和总结结果
+                result = summarize_conversation(conversation_history)
+                if result:
+                    summary, keep_indices = result
+                    
+                    # 创建新的对话历史
                     new_conversation_history = [
                         {"role": "system", "content": SYSTEM_PROMPT_ROLE},
                         {"role": "system", "content": f"[对话总结]\n{summary}"}
                     ]
                     
+                    # 添加保留的最新1/4对话
+                    for idx in keep_indices:
+                        new_conversation_history.append(conversation_history[idx])
+                    
                     # 备份旧的chat_history.json
                     backup_conversation_history()
                     # 保存新的对话历史
                     save_conversation_history(new_conversation_history)
-                    print("✅ 对话已总结并保存")
+                    print("✅ 对话已总结并保存（保留最新1/4对话）")
                     
                     # 更新当前对话历史
                     conversation_history = new_conversation_history

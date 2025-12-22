@@ -89,8 +89,12 @@ def summarize_conversation(conversation_history: List[Dict]) -> str:
         if msg["role"] in ["user", "assistant"]:
             role = "User" if msg["role"] == "user" else "Frieren"
             dialog_messages.append(f"{role}: {msg['content']}")
-        elif msg["role"] == "system" and "[对话总结]" in msg.get("content", ""):
-            previous_summary = msg["content"]
+        elif msg["role"] == "system":
+            content = msg.get("content", "")
+            if "[对话总结]" in content:
+                previous_summary = content
+            elif "对话日期" in content:
+                dialog_messages.append(f"{content}")
     
     if not dialog_messages:
         print("❌ 没有对话内容可总结")
@@ -154,6 +158,10 @@ def chat_loop():
 
     # 加载或初始化对话上下文
     conversation_history = load_conversation_history()
+    
+    # 添加日期信息
+    current_date = datetime.now().strftime("%Y年%m月%d日 %H:%M:%S")
+    conversation_history.append({"role": "system", "content": f"对话日期: {current_date}"})
 
     while True:
         try:

@@ -199,6 +199,9 @@ def chat_loop():
 
     while True:
         user_input = input("\nYou: ")
+        if not user_input:
+            continue
+
         if user_input.lower() == 'exit':
             save_conversation_history(conversation_history)
             break

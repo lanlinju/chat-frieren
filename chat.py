@@ -7,12 +7,10 @@ import json
 import shutil
 from datetime import datetime
 from typing import Generator, List, Dict
+import argparse
 
 # 配置API参数
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
-if not DEEPSEEK_API_KEY:
-    print("❌ 错误: 未设置 DEEPSEEK_API_KEY 环境变量", file=sys.stderr)
-    sys.exit(1)
 DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 DEEPSEEK_MODEL = "deepseek-chat"
 SYSTEM_PROMPT_ROLE = """
@@ -210,41 +208,63 @@ def chat_loop():
     conversation_history.append({"role": "system", "content": f"对话日期: {current_date}"})
 
     while True:
-        try:
-            user_input = input("\nYou: ")
-            if user_input.lower() == 'exit':
-                save_conversation_history(conversation_history)
-                break
-            
-            # 处理 /s 命令（总结对话）
-            if user_input.strip() == '/s':
-                summarize()
-                continue
-
-            # 添加用户消息到上下文
-            conversation_history.append({"role": "user", "content": user_input})
-
-            print("\nFrieren: ", end='', flush=True)
-            response_chunks = []
-
-            # 调用真实API获取流式响应
-            for chunk in get_streaming_response(conversation_history):
-                print(chunk, end='', flush=True)
-                response_chunks.append(chunk)
-
-            # 添加AI响应到上下文
-            if response_chunks:
-                full_response = ''.join(response_chunks)
-                conversation_history.append({"role": "assistant", "content": full_response})
-
-            print()  # 换行
-
-        except KeyboardInterrupt:
-            print("\n退出程序...")
+        user_input = input("\nYou: ")
+        if user_input.lower() == 'exit':
             save_conversation_history(conversation_history)
             break
-        except Exception as e:
-            print(f"\n发生错误: {e}")
+        
+        # 处理 /s 命令（总结对话）
+        if user_input.strip() == '/s':
+            summarize()
+            continue
+
+        # 添加用户消息到上下文
+        conversation_history.append({"role": "user", "content": user_input})
+
+        print("\nFrieren: ", end='', flush=True)
+        response_chunks = []
+
+        # 调用真实API获取流式响应
+        for chunk in get_streaming_response(conversation_history):
+            print(chunk, end='', flush=True)
+            response_chunks.append(chunk)
+
+        # 添加AI响应到上下文
+        if response_chunks:
+            full_response = ''.join(response_chunks)
+            conversation_history.append({"role": "assistant", "content": full_response})
+
+        print()  # 换行
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="DeepSeek 聊天客户端",
+    )
+
+    parser.add_argument(
+        "--api-key",
+        type=str,
+        help="DeepSeek API 密钥（如果不提供，将使用 DEEPSEEK_API_KEY 环境变量）"
+    )
+    
+    args = parser.parse_args()
+
+    # 设置 API 密钥
+    global DEEPSEEK_API_KEY
+    if args.api_key:
+        DEEPSEEK_API_KEY = args.api_key
+        
+    if not DEEPSEEK_API_KEY:
+        print("❌ 错误: 未设置 API 密钥。请使用 --api-key 参数或设置 DEEPSEEK_API_KEY 环境变量", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        chat_loop()
+    except KeyboardInterrupt:
+            print("\n退出程序...")
+            save_conversation_history(conversation_history)
+    except Exception as e:
+        print(f"\n发生错误: {e}")  
 
 if __name__ == "__main__":
-    chat_loop()
+    main()        

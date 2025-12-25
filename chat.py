@@ -251,10 +251,11 @@ def main():
     try:
         chat_loop()
     except KeyboardInterrupt:
-            print("\n退出程序...")
-            save_conversation_history(conversation_history)
+        print("\n退出程序...")
+        save_conversation_history(conversation_history)
     except Exception as e:
         print(f"\n发生错误: {e}")  
+        save_conversation_history(conversation_history)
 
 if __name__ == "__main__":
     main()        

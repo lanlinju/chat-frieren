@@ -262,28 +262,20 @@ RESET  = "\033[0m"
 
 VOICE = "zh-CN-XiaoxiaoNeural"
 
-async def speak_once(text: str) -> None:
-    """纯内存流式播放，不落盘"""
-    mpv_cmd = ["mpv", "--no-video", "--cache=no", "-"]  # 从 stdin 读流
+async def tts(text: str) -> None:
+    """Text to speech"""
+    cmd = ["edge-playback", "--voice", VOICE, "--text", text]
     proc = await asyncio.create_subprocess_exec(
-        *mpv_cmd,
-        stdin=asyncio.subprocess.PIPE,
+        *cmd,
         stdout=asyncio.subprocess.DEVNULL,
         stderr=asyncio.subprocess.DEVNULL,
     )
-
-    async for chunk in Communicate(text, VOICE).stream():
-        if chunk["type"] == "audio":
-            proc.stdin.write(chunk["data"])
-            await proc.stdin.drain()
-
-    proc.stdin.close()
     await proc.wait()
 
 def speak(text: str) -> None:
     """同步入口，给主线程调用"""
     # edge-tts 必须跑在同一条事件循环里，所以每次新建一个
-    asyncio.run(speak_once(text))
+    asyncio.run(tts(text))
 
 def chat_loop():
     """主聊天循环"""

@@ -8,6 +8,8 @@ import shutil
 from datetime import datetime, timedelta
 from typing import Generator, List, Dict
 import argparse
+import asyncio
+from edge_tts import Communicate
 
 # 配置API参数
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
@@ -15,7 +17,7 @@ DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 DEEPSEEK_MODEL = "deepseek-chat"
 SYSTEM_PROMPT_ROLE = """
 [角色设定]
-你现以《葬送的芙莉莲》中精灵魔法使芙莉莲的身份进行对话。作为存活千年的精灵，你经历了勇者团队的冒险之后，又独自踏上了新的旅途，对人类短暂的生命有独特感悟。保持日式轻小说语境。
+你现以《葬送的芙莉莲》中精灵魔法使芙莉莲的身份进行对话。作为存活千年的精灵，你经历了勇者团队的冒险之后，又独自踏上了新的旅途，对人类短暂的生命有独特感悟。
 
 [核心人格特征]
 话语体贴细腻
@@ -23,7 +25,7 @@ SYSTEM_PROMPT_ROLE = """
 
 [对话准则]
 1. 始终以芙莉莲的身份回应，保持角色一致性。
-2. 语言风格优雅。
+2. 语言风格优雅和简洁。
 3. 保持对话轻松愉快，偶尔展现幽默感。
 4. 不要使用复杂的句子结构和词汇，保持语言简洁明了
 5. 禁止出现括号内的动作描写或心理描写，只保留对话文本。
@@ -258,6 +260,31 @@ YELLOW = "\033[1;38;2;229;192;123m"
 GREEN  = "\033[1;38;2;152;195;121m"
 RESET  = "\033[0m"
 
+VOICE = "zh-CN-XiaoxiaoNeural"
+
+async def speak_once(text: str) -> None:
+    """纯内存流式播放，不落盘"""
+    mpv_cmd = ["mpv", "--no-video", "--cache=no", "-"]  # 从 stdin 读流
+    proc = await asyncio.create_subprocess_exec(
+        *mpv_cmd,
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+
+    async for chunk in Communicate(text, VOICE).stream():
+        if chunk["type"] == "audio":
+            proc.stdin.write(chunk["data"])
+            await proc.stdin.drain()
+
+    proc.stdin.close()
+    await proc.wait()
+
+def speak(text: str) -> None:
+    """同步入口，给主线程调用"""
+    # edge-tts 必须跑在同一条事件循环里，所以每次新建一个
+    asyncio.run(speak_once(text))
+
 def chat_loop():
     """主聊天循环"""
     print("DeepSeek 聊天客户端 (输入 'exit' 退出, '/s' 总结对话)")
@@ -300,6 +327,7 @@ def chat_loop():
             conversation_history.append({"role": "assistant", "content": full_response})
 
         print()  # 换行
+        speak(full_response)
 
 def main():
     parser = argparse.ArgumentParser(

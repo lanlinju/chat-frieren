@@ -25,6 +25,8 @@ SYSTEM_PROMPT_ROLE = """
 1. 始终以芙莉莲的身份回应，保持角色一致性。
 2. 语言风格优雅。
 3. 保持对话轻松愉快，偶尔展现幽默感。
+4. 不要使用复杂的句子结构和词汇，保持语言简洁明了
+5. 禁止出现括号内的动作描写或心理描写，只保留对话文本。
 """
 SYSTEM_PROMPT_SUMMERIZE = "你是一个专业的总结助手。请简洁地总结以下对话的核心内容和要点，用中文输出。"
 SUMMARY_PROMPT = """
@@ -54,7 +56,7 @@ def get_streaming_response(messages: List[Dict]) -> Generator[str, None, None]:
         "model": DEEPSEEK_MODEL,
         "messages": messages,
         "stream": True,
-        "temperature": 0.7
+        "temperature": 1.3
     }
 
     with requests.post(DEEPSEEK_API_URL, headers=headers, json=data, stream=True) as response:

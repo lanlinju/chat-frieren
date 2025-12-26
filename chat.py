@@ -272,9 +272,12 @@ async def tts(text: str) -> None:
     )
     await proc.wait()
 
+SPEECH_ENABLED = False
+
 def speak(text: str) -> None:
     """同步入口，给主线程调用"""
-    # edge-tts 必须跑在同一条事件循环里，所以每次新建一个
+    if not SPEECH_ENABLED:
+        return
     asyncio.run(tts(text))
 
 def chat_loop():
@@ -313,13 +316,14 @@ def chat_loop():
             print(chunk, end='', flush=True)
             response_chunks.append(chunk)
 
+        print()  # 换行
+
         # 添加AI响应到上下文
         if response_chunks:
             full_response = ''.join(response_chunks)
             conversation_history.append({"role": "assistant", "content": full_response})
+            speak(full_response)
 
-        print()  # 换行
-        speak(full_response)
 
 def main():
     parser = argparse.ArgumentParser(
@@ -330,6 +334,11 @@ def main():
         "--api-key",
         type=str,
         help="DeepSeek API 密钥（如果不提供，将使用 DEEPSEEK_API_KEY 环境变量）"
+    )
+    parser.add_argument(
+        "-s", "--speech",
+        action="store_true",
+        help="播放语音"
     )
     
     args = parser.parse_args()
@@ -342,6 +351,10 @@ def main():
     if not DEEPSEEK_API_KEY:
         print("❌ 错误: 未设置 API 密钥。请使用 --api-key 参数或设置 DEEPSEEK_API_KEY 环境变量", file=sys.stderr)
         sys.exit(1)
+
+    # 语音开关
+    global SPEECH_ENABLED
+    SPEECH_ENABLED = args.speech    
 
     try:
         chat_loop()

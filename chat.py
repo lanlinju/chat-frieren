@@ -5,7 +5,7 @@ import os
 import requests
 import json
 import shutil
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Generator, List, Dict
 import argparse
 
@@ -160,6 +160,43 @@ def load_conversation_history(filename: str = "chat_history.json") -> List[Dict]
         # 文件不存在或无效时返回初始上下文
         return [{"role": "system", "content": SYSTEM_PROMPT_ROLE}]
 
+def should_add_date_message(conversation_history: List[Dict]) -> bool:
+    """检查是否应该添加日期消息
+    
+    如果最新的系统消息是'对话日期:'且时间小于10分钟则不添加
+    否则返回True表示应该添加
+    """
+    # 查找最新的日期消息
+    latest_date_str = None
+    for msg in reversed(conversation_history):
+        if msg["role"] == "system" and msg.get("content", "").startswith("对话日期:"):
+            # 提取日期字符串部分
+            content = msg["content"]
+            # 格式: "对话日期: 2025年12月26日 13:44:46"
+            if "对话日期:" in content:
+                date_str = content.split("对话日期:", 1)[1].strip()
+                latest_date_str = date_str
+                break
+    
+    if not latest_date_str:
+        # 没有找到日期消息，需要添加
+        return True
+    
+    try:
+        # 解析日期字符串
+        date_obj = datetime.strptime(latest_date_str, "%Y年%m月%d日 %H:%M:%S")
+        # 计算时间差
+        time_diff = datetime.now() - date_obj
+        # 如果时间差小于10分钟，不需要添加新日期
+        if time_diff < timedelta(minutes=10):
+            return False
+        else:
+            return True
+    except (ValueError, KeyError) as e:
+        # 如果解析失败，添加新日期
+        print(f"⚠️ 日期解析错误: {e}, 将添加新的日期消息")
+        return True
+
 def summarize():
     global conversation_history
     result = summarize_conversation(conversation_history)
@@ -185,9 +222,39 @@ def summarize():
         # 更新当前对话历史
         conversation_history = new_conversation_history
 
-YELLOW = "\033[1;38;2;229;192;123m"   # #e5c07b - 黄色
-GREEN = "\033[1;38;2;152;195;121m"    # #98c379 - 绿色
-RESET = "\033[0m"
+def add_date_stamp(history: List[Dict]) -> None:
+    """
+    仅在以下两种情况之一时，才往 history 追加一条系统日期消息：
+    1. 历史为空；
+    2. 最后一条不是『对话日期』，或虽为日期但已超 10 分钟。
+    """
+    now = datetime.now()
+    current_ts = now.strftime("%Y年%m月%d日 %H:%M:%S")
+
+    if not history:                       # 空历史，直接加
+        history.append({"role": "system", "content": f"对话日期: {current_ts}"})
+        return
+
+    last = history[-1]
+    if last["role"] != "system" or not last["content"].startswith("对话日期: "):
+        # 最后一条不是日期，追加
+        history.append({"role": "system", "content": f"对话日期: {current_ts}"})
+        return
+
+    # 走到这里说明最后一条是日期，解析它的时间
+    try:
+        date_str = last["content"].lstrip("对话日期: ")
+        last_dt = datetime.strptime(date_str, "%Y年%m月%d日 %H:%M:%S")
+        if (now - last_dt).total_seconds() > 600:   # 10 分钟 = 600 s
+            # 超时，用新的替换掉旧的（避免无限增长）
+            last["content"] = f"对话日期: {current_ts}"
+    except ValueError:
+        # 解析失败，保守起见重新写一条
+        history.append({"role": "system", "content": f"对话日期: {current_ts}"})
+
+YELLOW = "\033[1;38;2;229;192;123m"
+GREEN  = "\033[1;38;2;152;195;121m"
+RESET  = "\033[0m"
 
 def chat_loop():
     """主聊天循环"""
@@ -198,8 +265,7 @@ def chat_loop():
     conversation_history = load_conversation_history()
 
     # 添加日期信息
-    current_date = datetime.now().strftime("%Y年%m月%d日 %H:%M:%S")
-    conversation_history.append({"role": "system", "content": f"对话日期: {current_date}"})
+    add_date_stamp(conversation_history)
 
     while True:
         user_input = input(f"{YELLOW}You:{RESET}\n")
@@ -265,4 +331,4 @@ def main():
         save_conversation_history(conversation_history)
 
 if __name__ == "__main__":
-    main()        
+    main()

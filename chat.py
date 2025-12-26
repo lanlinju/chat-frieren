@@ -185,6 +185,10 @@ def summarize():
         # 更新当前对话历史
         conversation_history = new_conversation_history
 
+YELLOW = "\033[1;38;2;229;192;123m"   # #e5c07b - 黄色
+GREEN = "\033[1;38;2;152;195;121m"    # #98c379 - 绿色
+RESET = "\033[0m"
+
 def chat_loop():
     """主聊天循环"""
     print("DeepSeek 聊天客户端 (输入 'exit' 退出, '/s' 总结对话)")
@@ -198,7 +202,7 @@ def chat_loop():
     conversation_history.append({"role": "system", "content": f"对话日期: {current_date}"})
 
     while True:
-        user_input = input("\nYou: ")
+        user_input = input(f"{YELLOW}You:{RESET}\n")
         if not user_input:
             continue
 
@@ -214,7 +218,7 @@ def chat_loop():
         # 添加用户消息到上下文
         conversation_history.append({"role": "user", "content": user_input})
 
-        print("\nFrieren: ", end='', flush=True)
+        print(f"{GREEN}Frieren:{RESET}\n", end='', flush=True)
         response_chunks = []
 
         # 调用真实API获取流式响应

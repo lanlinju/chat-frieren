@@ -66,13 +66,20 @@ def get_streaming_response(messages: List[Dict]) -> Generator[str, None, None]:
         for chunk in response.iter_lines():
             if chunk:
                 decoded = chunk.decode('utf-8')
-                if decoded.startswith("data:"):
-                    try:
-                        data = json.loads(decoded[5:])
-                        if "choices" in data and data["choices"][0]["delta"].get("content"):
-                            yield data["choices"][0]["delta"]["content"]
-                    except json.JSONDecodeError:
+                if not decoded.startswith("data:"):
+                    continue
+                if decoded == "data: [DONE]":
+                    break
+                try:
+                    data = json.loads(decoded[6:])
+                    if len(data["choices"]) == 0:
                         continue
+                    if data['choices'][0]['finish_reason'] != None:
+                        break
+                    if "choices" in data and data["choices"][0]["delta"].get("content"):
+                        yield data["choices"][0]["delta"]["content"]
+                except json.JSONDecodeError:
+                    continue
 
 def summarize_conversation(conversation_history: List[Dict]) -> str:
     """将对话历史的旧的3/4总结为摘要，保留最新的1/4不变"""

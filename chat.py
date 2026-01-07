@@ -8,6 +8,9 @@ import shutil
 from datetime import datetime, timedelta
 from typing import Generator, List, Dict
 import argparse
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
 
 # 配置API参数
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")

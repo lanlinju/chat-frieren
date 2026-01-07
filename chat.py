@@ -8,11 +8,14 @@ import shutil
 from datetime import datetime, timedelta
 from typing import Generator, List, Dict
 import argparse
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
 
 # 配置API参数
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
-DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
-DEEPSEEK_MODEL = "deepseek-chat"
+DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+DEEPSEEK_API_URL = os.getenv("DEEPSEEK_API_URL", "https://api.deepseek.com")
 SYSTEM_PROMPT_ROLE = """
 [角色设定]
 你现以《葬送的芙莉莲》中精灵魔法使芙莉莲的身份进行对话。作为存活千年的精灵，你经历了勇者团队的冒险之后，又独自踏上了新的旅途，对人类短暂的生命有独特感悟。保持日式轻小说语境。
@@ -59,7 +62,7 @@ def get_streaming_response(messages: List[Dict]) -> Generator[str, None, None]:
         "temperature": 1.3
     }
 
-    with requests.post(DEEPSEEK_API_URL, headers=headers, json=data, stream=True) as response:
+    with requests.post(f"{DEEPSEEK_API_URL}/v1/chat/completions", headers=headers, json=data, stream=True) as response:
         if response.status_code != 200:
             print(f"❌ API错误: {response.status_code} {response.text}")
             return

@@ -62,7 +62,7 @@ def get_streaming_response(messages: List[Dict]) -> Generator[str, None, None]:
         "temperature": 1.3
     }
 
-    with requests.post(f"{DEEPSEEK_API_URL}/v1/chat/completions", headers=headers, json=data, stream=True) as response:
+    with requests.post(f"{DEEPSEEK_API_URL}/chat/completions", headers=headers, json=data, stream=True) as response:
         if response.status_code != 200:
             print(f"❌ API错误: {response.status_code} {response.text}")
             return

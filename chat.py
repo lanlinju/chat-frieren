@@ -12,6 +12,9 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
+if sys.platform != "win32":
+    import readline
+
 # 配置API参数
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")

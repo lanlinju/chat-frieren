@@ -46,7 +46,7 @@ SUMMARY_PROMPT = """
 {dialog}
 """
 
-conversation_history : List[Dict[str, str]] = []
+conversation_history: List[Dict[str, str]] = []
 
 def get_streaming_response(messages: List[Dict]) -> Generator[str, None, None]:
     """获取真实的API流式响应"""
@@ -61,7 +61,8 @@ def get_streaming_response(messages: List[Dict]) -> Generator[str, None, None]:
         "stream": True,
         "temperature": 1.3
     }
-
+    in_think_tag = False  # 跟踪是否在 <think> 标签内
+    first_content = True
     with requests.post(f"{DEEPSEEK_API_URL}/chat/completions", headers=headers, json=data, stream=True) as response:
         if response.status_code != 200:
             print(f"❌ API错误: {response.status_code} {response.text}")
@@ -80,7 +81,18 @@ def get_streaming_response(messages: List[Dict]) -> Generator[str, None, None]:
                     if data['choices'][0]['finish_reason'] != None:
                         break
                     if "choices" in data and data["choices"][0]["delta"].get("content"):
-                        yield data["choices"][0]["delta"]["content"]
+                        content = data["choices"][0]["delta"]["content"]
+                        if "<think>" in content:
+                            in_think_tag = True
+                        if "</think>" in content:    
+                            in_think_tag = False
+                            continue
+                        if in_think_tag:
+                            continue
+                        if first_content:
+                            content =  content.replace("\n\n", "")
+                            first_content = False
+                        yield content
                 except json.JSONDecodeError:
                     continue
 
